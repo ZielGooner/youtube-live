@@ -12,6 +12,8 @@
   let mode = null;
   let reason = 'loading';
   let scheduled = false;
+  let fullUpdatePending = false;
+  let normalLayout = null;
   let navigating = false;
   let recommendationHome = null;
   let titleHome = null;
@@ -32,6 +34,10 @@
 
   function setVariable(name, value) {
     if (watch.style.getPropertyValue(name) !== value) watch.style.setProperty(name, value);
+  }
+
+  function setAttributeIfChanged(el, name, value) {
+    if (el.getAttribute(name) !== value) el.setAttribute(name, value);
   }
 
   function tag(el, part) {
@@ -61,13 +67,14 @@
 
   function deactivate(nextReason) {
     reason = nextReason;
+    normalLayout = null;
     document.documentElement.removeAttribute('data-ytlp-portrait');
     hiddenHeaderHeight = 0;
     if (watch) {
       watch.removeAttribute('data-ytlp-active');
       watch.removeAttribute('data-ytlp-mode');
       watch.removeAttribute('data-ytlp-orientation');
-      for (const name of ['--ytlp-stage-height', '--ytlp-player-height', '--ytlp-chat-height', '--ytlp-info-max-height', '--ytlp-chat-sticky-top']) watch.style.removeProperty(name);
+      for (const name of ['--ytlp-player-height', '--ytlp-chat-height', '--ytlp-info-max-height', '--ytlp-chat-sticky-top']) watch.style.removeProperty(name);
     }
     for (const el of tagged) el.removeAttribute(ATTR);
     tagged = [];
@@ -120,6 +127,52 @@
     return host;
   }
 
+  function sizeNormalChat(chat, stickyHost, header, viewport) {
+    let stickyTop = 0;
+    if (stickyHost) {
+      const rect = header && !header.hidden ? header.getBoundingClientRect() : null;
+      if (rect?.width > 0 && rect.height > 0 && rect.top < viewport.height &&
+          Number.isFinite(rect.bottom) && getComputedStyle(header).visibility !== 'hidden') {
+        stickyTop = Math.min(viewport.height, Math.max(0, rect.bottom));
+      }
+      setVariable('--ytlp-chat-sticky-top', `${stickyTop}px`);
+    } else if (watch.style.getPropertyValue('--ytlp-chat-sticky-top')) {
+      watch.style.removeProperty('--ytlp-chat-sticky-top');
+    }
+    // The desired top is a floor: containment at the column's bottom must not
+    // make chat grow. Measure that stretched column, never the sticky host itself.
+    const top = Math.max(0, stickyTop, chat.getBoundingClientRect().top);
+    let availableBottom = Math.max(0, viewport.height - CHAT_BOTTOM_GAP);
+    const secondary = stickyHost?.parentElement;
+    if (secondary?.matches('#secondary')) {
+      const bottom = secondary.getBoundingClientRect().bottom;
+      if (Number.isFinite(bottom)) availableBottom = Math.min(availableBottom, bottom);
+    }
+    setVariable('--ytlp-chat-height', `${Math.max(360, availableBottom - top)}px`);
+  }
+
+  function updateNormalScroll() {
+    const cached = normalLayout;
+    if (!cached || !active || mode !== 'normal' || watch !== cached.watch ||
+        cached.href !== location.href || !watch.isConnected || watch.hidden || watch.hasAttribute('hidden') ||
+        document.fullscreenElement || watch.hasAttribute('fullscreen') ||
+        !cached.player.isConnected || !watch.contains(cached.player) ||
+        cached.player.classList.contains('ytp-player-minimized') ||
+        !cached.video.isConnected || cached.video.parentElement !== cached.videoParent ||
+        !cached.chat.isConnected || !watch.contains(cached.chat) || cached.chat.parentElement !== cached.chatParent ||
+        cached.chat.hidden || cached.chat.hasAttribute('collapsed') ||
+        !cached.iframe.isConnected || !cached.chat.contains(cached.iframe) ||
+        (cached.sizeButton && !cached.sizeButton.isConnected) || isTheater(watch, cached.sizeButton) ||
+        (cached.header && !cached.header.isConnected) ||
+        (cached.stickyHost && (!cached.stickyHost.isConnected ||
+          cached.stickyHost.parentElement !== cached.hostParent || !cached.stickyHost.contains(cached.chat) ||
+          cached.stickyHost.contains(cached.video)))) return false;
+    const viewport = viewportSize();
+    if (viewport.width !== cached.width || viewport.height !== cached.height) return false;
+    sizeNormalChat(cached.chat, cached.stickyHost, cached.header, viewport);
+    return true;
+  }
+
   function restoreTitle() {
     const home = titleHome;
     titleHome = null;
@@ -162,8 +215,7 @@
       height:document.documentElement.clientHeight || innerHeight};
   }
 
-  function isReplay(chat) {
-    const iframe = chat?.querySelector('iframe');
+  function isReplay(iframe) {
     if (!iframe) return false;
     // Read only: never inject into the chat, click its menus, or change its URL.
     let url = iframe.getAttribute('src') || '';
@@ -174,17 +226,16 @@
   function isLive(w, player) {
     // A replay still has a chat frame. Require a current live player, or live metadata
     // without an end date. Never classify a video solely by the existence of chat.
-    const meta = w.querySelector('[itemprop="isLiveBroadcast"]') || document.querySelector('meta[itemprop="isLiveBroadcast"]');
     const end = w.querySelector('[itemprop="endDate"]') || document.querySelector('meta[itemprop="endDate"]');
     if (end?.getAttribute('content')) return false;
     if (player?.classList.contains('ytp-live')) return true;
-    return /^true$/i.test(meta?.getAttribute('content') || '') && !end?.getAttribute('content');
+    const meta = w.querySelector('[itemprop="isLiveBroadcast"]') || document.querySelector('meta[itemprop="isLiveBroadcast"]');
+    return /^true$/i.test(meta?.getAttribute('content') || '');
   }
 
-  function isTheater(w, player) {
+  function isTheater(w, button) {
     // YouTube can leave aria-label stale after toggling the mode. Its current
     // tooltip title changes correctly, even in the watch-while panel layout.
-    const button = player?.querySelector('.ytp-size-button');
     for (const attr of ['data-title-no-tooltip', 'data-tooltip-title', 'title', 'aria-label']) {
       const label = button?.getAttribute(attr) || '';
       if (/기본 보기|Default view/i.test(label)) return true;
@@ -199,10 +250,9 @@
     observer?.disconnect();
     watch = next;
     if (!watch) return;
-    watch.setAttribute('data-ytlp-version', '1.0.12');
-    observer = new MutationObserver(records => {
-      if (records.some(r => r.type === 'childList' || !r.attributeName?.startsWith('data-ytlp'))) schedule();
-    });
+    watch.setAttribute('data-ytlp-version', '1.1.0');
+    // The attribute filter already excludes every attribute written by us.
+    observer = new MutationObserver(schedule);
     observer.observe(watch, {subtree:true, childList:true, attributes:true,
       attributeFilter:['hidden','collapsed','theater','fullscreen','video-id','class','aria-label','title',
         'data-title-no-tooltip','data-tooltip-title','watch-while-panels-active','live-chat-present-and-expanded']});
@@ -254,29 +304,28 @@
   }
 
   function reconcile() {
-    scheduled = false;
-    if (navigating || settling) return;
+    if (!settingsReady) { reason = 'loading'; return; }
     const next = document.querySelector('ytd-watch-flexy:not([hidden])');
     connectWatch(next);
     let failure = null;
     const player = watch?.querySelector('#movie_player');
     const video = player?.querySelector('video');
     const chat = watch?.querySelector('ytd-live-chat-frame');
+    const iframe = chat?.querySelector('iframe');
+    const sizeButton = player?.querySelector('.ytp-size-button');
     const urlId = new URL(location.href).searchParams.get('v');
     const id = watch?.getAttribute('video-id');
     bindVideo(video);
-    if (!settingsReady) failure = 'loading';
-    else if (!enabled) failure = 'disabled';
-    else if (location.pathname !== '/watch' || !watch) failure = 'not-watch';
+    if (location.pathname !== '/watch' || !watch) failure = 'not-watch';
     else if (urlId && id && id !== urlId) failure = 'loading';
     else if (document.fullscreenElement || watch.hasAttribute('fullscreen')) failure = 'fullscreen';
     else if (player?.classList.contains('ytp-player-minimized') || document.querySelector('ytd-miniplayer[active]')) failure = 'miniplayer';
-    else if (isReplay(chat) || !isLive(watch, player)) failure = 'not-live';
-    else if (!chat || !chat.querySelector('iframe')) failure = 'no-chat';
+    else if (isReplay(iframe) || !isLive(watch, player)) failure = 'not-live';
+    else if (!chat || !iframe) failure = 'no-chat';
     else if (chat.hasAttribute('collapsed') || chat.hidden || (!active && !visible(chat))) failure = 'chat-hidden';
     else if (!video) failure = 'loading';
 
-    const theater = watch && isTheater(watch, player);
+    const theater = watch && isTheater(watch, sizeButton);
     const viewport = viewportSize();
     // Include near-square floating windows: browser chrome can otherwise put
     // an apparently tall window just a few pixels beyond the portrait boundary.
@@ -298,9 +347,9 @@
       deactivate('unsupported'); return;
     }
     mode = nextMode;
-    watch.setAttribute('data-ytlp-mode', mode);
+    setAttributeIfChanged(watch, 'data-ytlp-mode', mode);
     // Recommendation sizing follows the viewport even in YouTube's default view.
-    watch.setAttribute('data-ytlp-orientation', portrait ? 'portrait' : 'landscape');
+    setAttributeIfChanged(watch, 'data-ytlp-orientation', portrait ? 'portrait' : 'landscape');
     if (!watch.hasAttribute('data-ytlp-active')) watch.setAttribute('data-ytlp-active', '');
     if (mode === 'landscape-theater') {
       // Keep YouTube's wide theater player, chat, title and header unchanged.
@@ -316,28 +365,12 @@
     tag(chat, 'chat');
     if (mode === 'normal') {
       const stickyHost = updateStickyChatHost(chat, video);
-      let stickyTop = 0;
-      if (stickyHost) {
-        const header = document.querySelector('ytd-masthead') || document.querySelector('#masthead-container');
-        const rect = visible(header) ? header.getBoundingClientRect() : null;
-        if (rect?.height > 0 && rect.top < viewport.height && Number.isFinite(rect.bottom)) {
-          stickyTop = Math.min(viewport.height, Math.max(0, rect.bottom));
-        }
-        setVariable('--ytlp-chat-sticky-top', `${stickyTop}px`);
-      } else watch.style.removeProperty('--ytlp-chat-sticky-top');
-      // At the column's bottom, sticky containment can push the chat upward.
-      // Keep the desired top as a floor so that this cannot grow its own height.
-      const top = Math.max(0, stickyTop, chat.getBoundingClientRect().top);
-      let availableBottom = Math.max(0, viewport.height - CHAT_BOTTOM_GAP);
-      const secondary = stickyHost?.parentElement;
-      if (secondary?.matches('#secondary')) {
-        // Measure the stretched column, not the sticky host whose own height
-        // we are changing, so the page end cannot push chat behind the header.
-        const bottom = secondary.getBoundingClientRect().bottom;
-        if (Number.isFinite(bottom)) availableBottom = Math.min(availableBottom, bottom);
-      }
-      setVariable('--ytlp-chat-height', `${Math.max(360, availableBottom - top)}px`);
+      const header = stickyHost ? document.querySelector('ytd-masthead') || document.querySelector('#masthead-container') : null;
+      sizeNormalChat(chat, stickyHost, header, viewport);
       placeRecommendations(below, infoBox?.nextSibling);
+      normalLayout = {watch, player, video, chat, iframe, sizeButton, stickyHost, header,
+        videoParent:video.parentElement, chatParent:chat.parentElement, hostParent:stickyHost?.parentElement,
+        href:location.href, width:viewport.width, height:viewport.height};
       active = true;
       reason = 'normal';
       return;
@@ -365,7 +398,7 @@
     const videoBudget = Math.max(0, stageHeight - hiddenHeaderHeight);
     // YouTube's chat document has its own 320px minimum. Keep a larger outer
     // frame so borders and the complete input panel fit without page scrolling.
-    const frameRect = chat.querySelector('iframe').getBoundingClientRect();
+    const frameRect = iframe.getBoundingClientRect();
     const chatOverhead = frameRect.height > 0 ? Math.max(0, chat.getBoundingClientRect().height - frameRect.height) : 0;
     const minimumChat = Math.max(360, Math.ceil(chatOverhead) + 322);
     const infoGap = 10;
@@ -373,7 +406,6 @@
     const infoHeight = infoBox.getBoundingClientRect().height;
     const ratio = video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 16 / 9;
     const playerHeight = Math.max(0, Math.min(rootWidth / ratio, videoBudget - infoHeight - infoGap - minimumChat));
-    setVariable('--ytlp-stage-height', `${stageHeight}px`);
     setVariable('--ytlp-player-height', `${playerHeight}px`);
     setVariable('--ytlp-chat-height', `${Math.max(minimumChat, stageHeight - playerHeight - infoHeight - infoGap)}px`);
     // Metadata tooltips and description expansion must not trigger YouTube's
@@ -394,10 +426,31 @@
     reason = 'portrait-theater';
   }
 
-  function schedule() {
-    if (scheduled) return;
+  function requestUpdate() {
+    if (scheduled || document.hidden || navigating || settling) return;
     scheduled = true;
-    requestAnimationFrame(reconcile);
+    requestAnimationFrame(() => {
+      scheduled = false;
+      if (document.hidden || navigating || settling || (settingsReady && !enabled)) return;
+      const full = fullUpdatePending;
+      fullUpdatePending = false;
+      if (!full && updateNormalScroll()) return;
+      reconcile();
+    });
+  }
+
+  function schedule() {
+    if (settingsReady && !enabled) {
+      const restorePlayer = mode === 'portrait-theater';
+      if (active) deactivate('disabled');
+      else reason = 'disabled';
+      fullUpdatePending = false;
+      bindVideo(null);
+      if (restorePlayer) nativeRelayout();
+      return;
+    }
+    fullUpdatePending = true;
+    requestUpdate();
   }
 
   window.addEventListener('resize', schedule, {passive:true});
@@ -408,7 +461,9 @@
     if (event.ctrlKey || event.altKey || event.metaKey || event.target.closest?.('input, textarea, [contenteditable="true"]')) return;
     if (/^[tf]$/i.test(event.key)) releaseBeforeModeChange();
   }, true);
-  window.addEventListener('scroll', () => { if (mode === 'normal') schedule(); }, {passive:true});
+  window.addEventListener('scroll', () => {
+    if (mode === 'normal' && active) requestUpdate();
+  }, {passive:true});
   window.visualViewport?.addEventListener('resize', schedule, {passive:true});
   document.addEventListener('fullscreenchange', schedule);
   document.addEventListener('yt-navigate-start', () => {
@@ -420,7 +475,8 @@
   }
   window.addEventListener('popstate', () => { navigating = false; schedule(); });
   chrome.storage.local.get({enabled:true}, data => {
-    if (chrome.runtime.lastError) return;
+    // A live settings change is newer than an in-flight initial read.
+    if (chrome.runtime.lastError || settingsReady) return;
     enabled = data.enabled !== false;
     settingsReady = true;
     schedule();
@@ -433,11 +489,11 @@
     }
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (message?.type === 'ytlp:get-status') respond({enabled,active,reason,mode,version:'1.0.12'});
+    if (message?.type === 'ytlp:get-status') respond({enabled,active,reason,mode,version:'1.1.0'});
   });
   // A low frequency recovery check covers late watch mounts and future SPA events.
   // Hidden tabs don't repeatedly walk the DOM, and no iframe messages are observed.
-  setInterval(() => { if (!document.hidden) schedule(); }, 1500);
+  setInterval(() => { if (!document.hidden && enabled) schedule(); }, 1500);
   document.addEventListener('visibilitychange', schedule);
   schedule();
 })();

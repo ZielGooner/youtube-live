@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "유튜브 라이브 ui",
-  "version": "1.0.12",
+  "version": "1.1.0",
   "description": "YouTube 라이브 기본 모드의 채팅·추천 배치를 개선하고, 세로 영화관 모드에서는 영상·방송 정보·채팅을 순서대로 배치합니다.",
   "minimum_chrome_version": "120",
   "permissions": ["storage"],

@@ -6,6 +6,14 @@ const statusDetail = document.getElementById("status-detail");
 const statusDot = document.getElementById("status-dot");
 const errorLabel = document.getElementById("error");
 let refreshGeneration = 0;
+let enabled = null;
+let settingsRevision = 0;
+
+const titles = {
+  normal: "기본 모드 개선 적용 중",
+  "portrait-theater": "세로 영화관 배치 적용 중",
+  "landscape-theater": "가로 영화관 추천 배치 적용 중"
+};
 
 const reasons = {
   disabled: "기능을 껐어요. YouTube 기본 배치를 사용해요.",
@@ -33,15 +41,19 @@ function showStatus(title, detail, active = false) {
 async function refreshStatus() {
   const generation = ++refreshGeneration;
   try {
-    const settings = await chrome.storage.local.get({ enabled: true });
-    if (generation !== refreshGeneration) return;
-    toggle.checked = settings.enabled !== false;
-    if (!toggle.checked) {
+    if (enabled === null) {
+      const settings = await chrome.storage.local.get({ enabled: true });
+      if (generation !== refreshGeneration) return;
+      enabled = settings.enabled !== false;
+      toggle.checked = enabled;
+    }
+    if (!enabled) {
       showStatus("기능 꺼짐", reasons.disabled);
       return;
     }
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (generation !== refreshGeneration) return;
     if (!Number.isInteger(tab?.id)) throw new Error("No active tab");
     const response = await chrome.tabs.sendMessage(tab.id, { type: "ytlp:get-status" }, { frameId: 0 });
     if (generation !== refreshGeneration) return;
@@ -49,7 +61,6 @@ async function refreshStatus() {
     const active = response.active;
     const reason = typeof response.reason === "string" ? response.reason : "";
     const detail = reasons[reason] || reason || (active ? reasons.active : reasons.loading);
-    const titles = { normal: "기본 모드 개선 적용 중", "portrait-theater": "세로 영화관 배치 적용 중", "landscape-theater": "가로 영화관 추천 배치 적용 중" };
     showStatus(active ? (titles[reason] || titles[response.mode] || "라이브 화면 개선 적용 중") : "자동 적용 대기 중", detail, active);
   } catch (_) {
     if (generation !== refreshGeneration) return;
@@ -57,15 +68,32 @@ async function refreshStatus() {
   }
 }
 
+function applyEnabled(value) {
+  const next = value !== false;
+  toggle.checked = next;
+  if (enabled === next) return;
+  enabled = next;
+  void refreshStatus();
+}
+
 toggle.addEventListener("change", async () => {
-  const enabled = toggle.checked;
+  const requested = toggle.checked;
+  const previous = enabled;
+  const revision = settingsRevision;
+  ++refreshGeneration;
   toggle.disabled = true;
   errorLabel.hidden = true;
   try {
-    await chrome.storage.local.set({ enabled });
-    await refreshStatus();
+    await chrome.storage.local.set({ enabled: requested });
+    // onChanged can arrive before or after set() resolves. Refresh only once,
+    // and do not overwrite a newer change from another popup.
+    if (revision === settingsRevision) applyEnabled(requested);
   } catch (_) {
-    toggle.checked = !enabled;
+    if (revision === settingsRevision) {
+      enabled = previous;
+      toggle.checked = previous !== false;
+      void refreshStatus();
+    }
     errorLabel.textContent = "설정을 저장하지 못했어요. 팝업을 다시 열어 시도해 주세요.";
     errorLabel.hidden = false;
   } finally {
@@ -74,7 +102,9 @@ toggle.addEventListener("change", async () => {
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.enabled) void refreshStatus();
+  if (area !== "local" || !changes.enabled) return;
+  ++settingsRevision;
+  applyEnabled(changes.enabled.newValue);
 });
 
 void refreshStatus();

@@ -1,10 +1,10 @@
 {
   "name": "youtube-live",
-  "version": "1.0.12",
+  "version": "1.1.0",
   "private": true,
   "description": "Chrome·Edge용 YouTube 라이브 화면 개선 확장 프로그램",
   "scripts": {
-    "test": "node tests/layout-contract.cjs",
+    "test": "node tests/layout-contract.cjs && node --test tests/popup-contract.cjs",
     "check": "node --check content.js && node --check popup.js"
   }
 }

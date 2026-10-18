@@ -126,13 +126,26 @@ function fixture(options = {}) {
   related.appendChild(new Element('ytd-watch-next-secondary-results-renderer'));
   const frames = [];
   const mutationObservers = [], resizeObservers = [];
+  const intervalCallbacks = [];
+  const operations = {queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0};
+  const instrument = el => {
+    for(const [method,counter]of [['querySelectorAll','queries'],['getBoundingClientRect','rectReads'],['setAttribute','attributeWrites'],['removeAttribute','attributeWrites']]){
+      const original=el[method];el[method]=function(...args){operations[counter]++;return original.apply(this,args);};
+    }
+    for(const method of ['setProperty','removeProperty']){
+      const original=el.style[method];el.style[method]=(...args)=>{operations.styleWrites++;return original(...args);};
+    }
+    for(const child of el.children)instrument(child);
+  };
+  instrument(doc);
   let nativeResizeEvents = 0;
   let settingsCallback, storageCallback, messageCallback;
   const global = {
     document: doc, location: { pathname: '/watch', href: 'https://www.youtube.com/watch?v=live1', origin: 'https://www.youtube.com' },
     innerHeight: 1000, innerWidth: 800, scrollY: 0, URL, console,
     Event: class { constructor(type) { this.type = type; } },
-    requestAnimationFrame: cb => frames.push(cb), setInterval: () => 1,
+    requestAnimationFrame: cb => {operations.queuedFrames++;return frames.push(cb);},
+    setInterval: cb => {intervalCallbacks.push(cb);return intervalCallbacks.length;},
     getComputedStyle: () => ({ visibility: 'visible' }),
     MutationObserver: class {
       constructor(callback) { this.callback = callback; this.observations = []; mutationObservers.push(this); }
@@ -171,7 +184,9 @@ function fixture(options = {}) {
     for (const observer of resizeObservers) if (observer.targets.has(target)) observer.callback([{target, contentRect:target.rect}]);
     flush();
   };
-  return { global, doc, watch, headerContainer,masthead,headerMeasureCount:()=>headerMeasures,playerHost, player, video, sizeButton, below, metadata, infoBox:infoBox || metadata, titleRow,titleParent,title,titleLabel,owner,ownerRenderer,uploadInfo,purchase,sponsor,subscribe,comments, secondary,secondaryInner, chat, iframe, related, home, messages, flush, frame, event, status, settings, changeEnabled, mutate, resizeInfo, resizeObservers, nativeResizeCount:()=>nativeResizeEvents };
+  const resetOperations=()=>{for(const key of Object.keys(operations))operations[key]=0;};
+  const heartbeat=()=>{for(const callback of intervalCallbacks)callback();flush();};
+  return { global, doc, watch, headerContainer,masthead,headerMeasureCount:()=>headerMeasures,playerHost, player, video, sizeButton, below, metadata, infoBox:infoBox || metadata, titleRow,titleParent,title,titleLabel,owner,ownerRenderer,uploadInfo,purchase,sponsor,subscribe,comments, secondary,secondaryInner, chat, iframe, related, home, messages, flush, frame, event, status, settings, changeEnabled, mutate, resizeInfo, resizeObservers, mutationObservers, heartbeat, resetOperations, operations:()=>({...operations}), nativeResizeCount:()=>nativeResizeEvents };
 }
 
 let passed = 0, failed = 0;
@@ -189,6 +204,25 @@ test('waits for saved settings; stored OFF causes no layout or recommendation mo
   assert.equal(f.watch.hasAttribute('data-ytlp-orientation'), false);
 });
 
+test('a live OFF setting wins over a late initial ON read without activating the layout', () => {
+  const f=fixture();f.changeEnabled(false);
+  assert.equal(f.status().enabled,false);assert.equal(f.status().active,false);
+  f.resetOperations();f.settings(true);
+  assert.equal(f.status().enabled,false);assert.equal(f.status().reason,'disabled');assert.equal(f.status().active,false);
+  assert.equal(f.related.parentNode,f.home);assert.equal(f.watch.hasAttribute('data-ytlp-active'),false);
+  assert.deepEqual(f.operations(),{queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0});
+});
+
+test('a live ON setting wins over a late initial OFF read and later toggles remain effective', () => {
+  const f=fixture();f.changeEnabled(true);
+  assert.equal(f.status().enabled,true);assert.equal(f.status().mode,'normal');
+  f.resetOperations();f.settings(false);
+  assert.equal(f.status().enabled,true);assert.equal(f.status().mode,'normal');assert.equal(f.status().active,true);
+  assert.deepEqual(f.operations(),{queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0});
+  f.changeEnabled(false);assert.equal(f.status().active,false);assert.equal(f.related.parentNode,f.home);
+  f.changeEnabled(true);assert.equal(f.status().mode,'normal');assert.equal(f.status().active,true);
+});
+
 test('normal -> portrait theater -> landscape theater -> normal -> OFF restores media and recommendations', () => {
   const f = fixture(); const media = [f.video, f.iframe, f.playerHost, f.chat].map(n => [n, n.parentNode, n.moves]);
   f.settings(true); assert.equal(f.status().mode, 'normal'); assert.equal(f.related.parentNode, f.below);
@@ -197,7 +231,7 @@ test('normal -> portrait theater -> landscape theater -> normal -> OFF restores 
   f.sizeButton.setAttribute('aria-label', 'Default view'); f.event('resize');
   assert.equal(f.status().mode, 'portrait-theater'); assert.equal(f.related.parentNode, f.watch);
   assert.equal(f.watch.getAttribute('data-ytlp-orientation'),'portrait');
-  for (const name of ['stage-height','player-height','chat-height']) assert.ok(parseFloat(f.watch.style.getPropertyValue(`--ytlp-${name}`)) > 0);
+  for (const name of ['player-height','chat-height']) assert.ok(parseFloat(f.watch.style.getPropertyValue(`--ytlp-${name}`)) > 0);
   f.global.innerWidth = 1200; f.event('resize');
   assert.equal(f.status().reason, 'landscape-theater'); assert.equal(f.related.parentNode, f.below); assert.equal(f.watch.style.css.size, 0);
   assert.equal(f.watch.getAttribute('data-ytlp-orientation'),'landscape');
@@ -300,7 +334,6 @@ test('portrait exit removes all flow markers and portrait sizes while retaining 
   for(const node of [f.below,f.secondary,f.chat.parentNode]) assert.equal(node.hasAttribute('data-ytlp-flow'),false);
   assert.equal(f.playerHost.hasAttribute('data-ytlp-part'),false);
   assert.equal(f.infoBox.hasAttribute('data-ytlp-part'),false);
-  assert.equal(f.watch.style.getPropertyValue('--ytlp-stage-height'),'');
   assert.equal(f.watch.style.getPropertyValue('--ytlp-player-height'),'');
   assert.equal(f.watch.style.getPropertyValue('--native-width'),'654px');
   assert.equal(f.player.style.getPropertyValue('width'),'654px'); assert.equal(f.video.style.getPropertyValue('left'),'4px');
@@ -389,7 +422,6 @@ test('client viewport excludes scrollbar pixels from portrait and normal chat bu
   f.global.innerWidth=815; f.global.innerHeight=1270; f.watch.rect.top=56;
   f.sizeButton.setAttribute('data-title-no-tooltip','Default view'); f.settings(true);
   const amount=name=>parseFloat(f.watch.style.getPropertyValue(`--ytlp-${name}`));
-  assert.equal(amount('stage-height'),1199);
   assert.equal(amount('info-max-height'),299.75);
   assert.equal(56+amount('player-height')+f.infoBox.rect.height+10+amount('chat-height'),1255);
   assert.ok(amount('chat-height')>=360);
@@ -413,11 +445,11 @@ test('video yields height to minimum chat budget and tiny portrait windows resto
   f.global.innerWidth=600;f.global.innerHeight=815;f.watch.rect.top=56;f.watch.rect.width=600;f.infoBox.rect.height=180;
   f.sizeButton.setAttribute('data-title-no-tooltip','Default view');f.settings(true);
   const amount=name=>parseFloat(f.watch.style.getPropertyValue(`--ytlp-${name}`));
-  assert.equal(amount('stage-height'),744);assert.equal(amount('info-max-height'),186);
+  assert.equal(amount('info-max-height'),186);
   assert.equal(amount('player-height'),194);assert.equal(amount('chat-height'),360);
   f.doc.documentElement.clientWidth=300;f.doc.documentElement.clientHeight=430;f.watch.rect.top=56;f.event('resize');
   assert.equal(f.status().reason,'viewport-small');assert.equal(f.status().active,false);
-  for(const name of ['stage-height','player-height','chat-height','info-max-height'])assert.equal(f.watch.style.getPropertyValue(`--ytlp-${name}`),'');
+  for(const name of ['player-height','chat-height','info-max-height'])assert.equal(f.watch.style.getPropertyValue(`--ytlp-${name}`),'');
   assert.equal(f.title.parentNode,f.titleParent);assert.equal(f.below.hasAttribute('data-ytlp-flow'),false);
 });
 
@@ -562,7 +594,7 @@ test('hiding the 56px masthead gives all recovered space to chat while preservin
   const value=(f,name)=>parseFloat(f.watch.style.getPropertyValue(`--ytlp-${name}`));
   assert.equal(withHeader.doc.documentElement.hasAttribute('data-ytlp-portrait'),true);
   assert.equal(withHeader.watch.getBoundingClientRect().top,0);
-  assert.equal(value(withHeader,'stage-height')-value(baseline,'stage-height'),56);
+  assert.equal(value(withHeader,'player-height')+value(withHeader,'chat-height')-value(baseline,'player-height')-value(baseline,'chat-height'),56);
   assert.equal(value(withHeader,'player-height'),value(baseline,'player-height'));
   assert.equal(value(withHeader,'info-max-height'),value(baseline,'info-max-height'));
   assert.equal(value(withHeader,'chat-height')-value(baseline,'chat-height'),56);
@@ -580,7 +612,7 @@ test('masthead selector is preferred and container fallback also returns header 
   const fallback=fixture({headerHeight:56,containerOnly:true});
   fallback.sizeButton.setAttribute('data-title-no-tooltip','Default view');fallback.settings(true);
   assert.equal(fallback.doc.documentElement.hasAttribute('data-ytlp-portrait'),true);
-  assert.equal(parseFloat(fallback.watch.style.getPropertyValue('--ytlp-stage-height')),1000);
+  assert.equal(parseFloat(fallback.watch.style.getPropertyValue('--ytlp-player-height'))+fallback.infoBox.rect.height+10+parseFloat(fallback.watch.style.getPropertyValue('--ytlp-chat-height')),1000);
   assert.equal(parseFloat(fallback.watch.style.getPropertyValue('--ytlp-player-height')),450);
   assert.equal(parseFloat(fallback.watch.style.getPropertyValue('--ytlp-chat-height')),440);
   assert.equal(fallback.headerMeasureCount(),1);
@@ -1105,12 +1137,131 @@ test('portrait theater fills to the viewport bottom while metadata expansion red
     for(const infoHeight of [100,180,100]){
       f.resizeInfo(infoHeight);
       const bottom=f.watch.getBoundingClientRect().top+value('player-height')+infoHeight+10+value('chat-height');
-      assert.equal(height-bottom,0);assert.equal(value('stage-height'),height);
+      assert.equal(height-bottom,0);
       assert.ok(value('chat-height')>=360);
     }
     assert.equal(f.nativeResizeCount(),1);
   }
 });
 
+test('steady normal scrolling uses cached geometry without selector queries or redundant attribute writes', () => {
+  const f=fixture({headerHeight:56,secondaryInner:true,chatInSecondaryInner:true,clientWidth:1400,clientHeight:1000});
+  f.settings(true);f.resetOperations();
+  for(let index=0;index<120;index++){
+    f.chat.rect.top=index%2?56:80;f.event('scroll');
+    assert.equal(f.watch.style.getPropertyValue('--ytlp-chat-height'),index%2?'932px':'908px');
+  }
+  assert.deepEqual(f.operations(),{queries:0,rectReads:360,attributeWrites:0,styleWrites:120,queuedFrames:120});
+  f.resetOperations();f.event('scroll');
+  assert.equal(f.operations().styleWrites,0);assert.equal(f.operations().queries,0);
+});
+
+test('scroll bursts coalesce while full DOM updates win in either event order', () => {
+  for(const fullFirst of [false,true]){
+    const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);f.resetOperations();
+    const fullUpdate=()=>{
+      f.sizeButton.setAttribute('data-title-no-tooltip','Default view');
+      for(const observer of f.mutationObservers)observer.callback([{type:'attributes',target:f.sizeButton,attributeName:'data-title-no-tooltip'}]);
+    };
+    if(fullFirst)fullUpdate();
+    for(let index=0;index<20;index++)f.doc.fire('window:scroll');
+    if(!fullFirst)fullUpdate();
+    assert.equal(f.operations().queuedFrames,1);f.flush();
+    assert.equal(f.status().mode,'landscape-theater');assert.ok(f.operations().queries>0);
+    assert.equal(f.nativeResizeCount(),1);
+  }
+});
+
+test('scroll cache falls back when a native chat move invalidates its parent', () => {
+  const f=fixture({headerHeight:56,secondaryInner:true,chatInSecondaryInner:true,clientWidth:1400,clientHeight:1000});
+  f.settings(true);f.secondary.appendChild(f.chat);f.chat.rect.top=40;f.resetOperations();
+  const nativeMoves=f.chat.moves,frameMoves=f.iframe.moves;
+  f.event('scroll');assert.ok(f.operations().queries>0);
+  assert.equal(f.secondaryInner.hasAttribute('data-ytlp-part'),false);
+  assert.equal(f.watch.style.getPropertyValue('--ytlp-chat-sticky-top'),'');
+  assert.equal(f.watch.style.getPropertyValue('--ytlp-chat-height'),'948px');
+  assert.equal(f.chat.moves,nativeMoves);assert.equal(f.iframe.moves,frameMoves);
+  f.resetOperations();f.event('scroll');assert.equal(f.operations().queries,0);
+});
+
+test('a replaced chat frame invalidates cached scrolling and late recovery still finds its replacement', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);
+  f.iframe.remove();f.resetOperations();f.event('scroll');
+  assert.ok(f.operations().queries>0);assert.equal(f.status().reason,'no-chat');assert.equal(f.status().active,false);
+  const replacement=f.chat.appendChild(new Element('iframe',{src:'https://www.youtube.com/live_chat?v=live1'}));
+  const moves=replacement.moves;f.resetOperations();f.heartbeat();
+  assert.ok(f.operations().queries>0);assert.equal(f.status().mode,'normal');
+  assert.equal(replacement.parentNode,f.chat);assert.equal(replacement.moves,moves);
+});
+
+test('scroll notices changed viewport and native theater state even before their dedicated events arrive', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);
+  f.doc.documentElement.clientWidth=800;f.resetOperations();f.event('scroll');
+  assert.ok(f.operations().queries>0);assert.equal(f.watch.getAttribute('data-ytlp-orientation'),'portrait');
+  f.sizeButton.setAttribute('data-title-no-tooltip','Default view');f.event('scroll');
+  assert.equal(f.status().mode,'portrait-theater');assert.equal(f.title.parentNode,f.ownerRenderer);
+});
+
+test('disabled updates and heartbeat do no DOM work and cannot revive a queued scroll', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);
+  f.doc.fire('window:scroll');f.changeEnabled(false);
+  assert.equal(f.status().reason,'disabled');assert.equal(f.status().active,false);
+  assert.equal(f.video.listeners.get('loadedmetadata')?.length||0,0);
+  f.resetOperations();
+  for(let index=0;index<20;index++){
+    f.heartbeat();f.event('yt-player-updated');f.event('resize');f.event('scroll');
+  }
+  assert.deepEqual(f.operations(),{queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0});
+  f.changeEnabled(true);assert.equal(f.status().mode,'normal');
+  assert.equal(f.video.listeners.get('loadedmetadata')?.length,1);
+});
+
+test('hidden tabs defer DOM work and refresh current state when made visible', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);f.doc.hidden=true;f.resetOperations();
+  f.sizeButton.setAttribute('data-title-no-tooltip','Default view');f.resetOperations();
+  for(let index=0;index<20;index++){f.event('yt-player-updated');f.event('scroll');f.heartbeat();}
+  assert.deepEqual(f.operations(),{queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0});
+  f.doc.hidden=false;f.event('visibilitychange');
+  assert.equal(f.status().mode,'landscape-theater');assert.ok(f.operations().queries>0);
+});
+
+test('a frame queued before the tab becomes hidden performs no stale DOM work', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);
+  f.doc.fire('window:scroll');f.doc.hidden=true;f.resetOperations();f.flush();
+  assert.deepEqual(f.operations(),{queries:0,rectReads:0,attributeWrites:0,styleWrites:0,queuedFrames:0});
+  f.doc.hidden=false;f.chat.rect.top=200;f.event('visibilitychange');
+  assert.equal(f.watch.style.getPropertyValue('--ytlp-chat-height'),'788px');
+});
+
+test('enabled heartbeat retains late watch mounting and unannounced metadata recovery', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.watch.remove();f.settings(true);
+  assert.equal(f.status().reason,'not-watch');
+  f.doc.documentElement.appendChild(f.watch);f.heartbeat();assert.equal(f.status().mode,'normal');
+  f.player.classes.delete('ytp-live');f.heartbeat();assert.equal(f.status().reason,'not-live');
+  f.player.classes.add('ytp-live');f.heartbeat();assert.equal(f.status().mode,'normal');
+  f.event('yt-navigate-start');f.heartbeat();assert.equal(f.status().active,false);
+  f.event('yt-navigate-finish');assert.equal(f.status().mode,'normal');
+});
+
+test('full reconciliations avoid identical mode and orientation writes and unused stage styles', () => {
+  const f=fixture({clientWidth:1400,clientHeight:1000});f.settings(true);f.resetOperations();
+  for(let index=0;index<5;index++)f.event('yt-player-updated');
+  assert.equal(f.operations().attributeWrites,0);assert.equal(f.operations().styleWrites,0);
+  f.doc.documentElement.clientWidth=800;f.mutate(f.sizeButton,'data-title-no-tooltip','Default view');
+  assert.equal(f.status().mode,'portrait-theater');
+  assert.equal(f.watch.style.getPropertyValue('--ytlp-stage-height'),'');
+});
+
+if(process.env.YTLP_MEASURE){
+  const normal=fixture({headerHeight:56,secondaryInner:true,chatInSecondaryInner:true,clientWidth:1400,clientHeight:1000});
+  normal.settings(true);normal.resetOperations();
+  for(let index=0;index<120;index++){normal.chat.rect.top=index%2?56:80;normal.event('scroll');}
+  const disabled=fixture();disabled.settings(false);disabled.resetOperations();
+  for(let index=0;index<20;index++)disabled.heartbeat();
+  const hidden=fixture({headerHeight:56,secondaryInner:true,chatInSecondaryInner:true,clientWidth:1400,clientHeight:1000});
+  hidden.settings(true);hidden.doc.hidden=true;hidden.resetOperations();
+  for(let index=0;index<20;index++){hidden.event('yt-player-updated');hidden.heartbeat();}
+  console.log(JSON.stringify({mockOperations:{normalScroll120:normal.operations(),disabledHeartbeat20:disabled.operations(),hiddenUpdates20:hidden.operations()}}));
+}
 console.log(`${passed} passed; ${failed} failed. DOM contract tests only; no browser rendering or playback verification.`);
 process.exitCode = failed ? 1 : 0;

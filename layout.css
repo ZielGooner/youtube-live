@@ -1,5 +1,5 @@
 /* Every rule is gated. Removing this attribute restores YouTube's own layout. */
-ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] {
+ytd-watch-flexy[data-ytlp-active]:is([data-ytlp-mode="normal"], [data-ytlp-mode="portrait-theater"]) {
   --ytd-watch-flexy-chat-max-height: var(--ytlp-chat-height) !important;
   --ytd-watch-flexy-panel-max-height: var(--ytlp-chat-height) !important;
 }
@@ -15,7 +15,7 @@ ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="stic
 ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="sticky-chat-host"] [data-ytlp-part="chat"] {
   margin-bottom: 0 !important;
 }
-ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="chat"] {
+ytd-watch-flexy[data-ytlp-active]:is([data-ytlp-mode="normal"], [data-ytlp-mode="portrait-theater"]) [data-ytlp-part="chat"] {
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
@@ -23,7 +23,7 @@ ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="chat
   min-height: 0 !important;
   max-height: none !important;
 }
-ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="chat"] iframe {
+ytd-watch-flexy[data-ytlp-active]:is([data-ytlp-mode="normal"], [data-ytlp-mode="portrait-theater"]) [data-ytlp-part="chat"] iframe {
   display: block !important;
   box-sizing: border-box !important;
   flex: 1 1 0 !important;
@@ -157,8 +157,6 @@ ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] {
   padding: 0 !important;
   overflow: visible !important;
   overflow-anchor: none;
-  --ytd-watch-flexy-chat-max-height: var(--ytlp-chat-height) !important;
-  --ytd-watch-flexy-panel-max-height: var(--ytlp-chat-height) !important;
 }
 ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-flow] {
   display: contents !important;
@@ -345,16 +343,10 @@ ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-
 }
 ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="chat"] {
   order: -10 !important;
-  display: flex !important;
-  flex-direction: column !important;
   position: relative !important;
   inset: auto !important;
   flex: none !important;
-  box-sizing: border-box !important;
   width: 100% !important;
-  height: var(--ytlp-chat-height) !important;
-  min-height: 0 !important;
-  max-height: none !important;
   min-width: 0 !important;
   max-width: none !important;
   margin: 0 !important;
@@ -362,15 +354,6 @@ ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-
   transform: none !important;
   border-radius: 12px !important;
   overflow: hidden !important;
-}
-ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="chat"] iframe {
-  display: block !important;
-  box-sizing: border-box !important;
-  flex: 1 1 0 !important;
-  width: 100% !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  border: 0 !important;
 }
 ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="recommendations"] {
   order: -5 !important;
