@@ -1,0 +1,75 @@
+:root {
+  color-scheme: light dark;
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --text: #1d2433;
+  --muted: #687184;
+  --border: #e4e8ef;
+  --accent: #d63b49;
+  --soft-accent: #fff0f1;
+  --success: #17825f;
+}
+
+* { box-sizing: border-box; }
+body {
+  width: 352px;
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+}
+main { padding: 22px 20px 18px; }
+.heading { display: flex; align-items: center; gap: 11px; margin-bottom: 22px; }
+.heading img { flex-shrink: 0; }
+.eyebrow { margin: 0 0 2px; color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: 1.25px; }
+h1 { margin: 0; font-size: 20px; font-weight: 750; letter-spacing: -.8px; }
+h2 { margin: 0; font-size: 13px; font-weight: 700; }
+.setting { display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; }
+.setting strong { display: block; font-size: 13px; }
+.setting-caption { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.switch { position: relative; display: block; width: 42px; height: 24px; flex: 0 0 42px; }
+.switch input { position: absolute; inset: 0; margin: 0; opacity: 0; z-index: 2; cursor: pointer; }
+.switch-track { position: absolute; inset: 0; border-radius: 14px; background: #afb6c3; transition: background 150ms; }
+.switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; transition: transform 150ms; }
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch input:checked + .switch-track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch-track { outline: 3px solid #b14dcd; outline-offset: 3px; }
+.switch input:disabled { cursor: progress; }
+.switch input:disabled + .switch-track { opacity: .55; }
+.status-card { margin: 18px 0 20px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.status-heading { display: flex; align-items: center; gap: 7px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #a1a8b4; flex: 0 0 7px; }
+.status-dot.active { background: var(--success); box-shadow: 0 0 0 3px #17825f18; }
+.status-card p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.layout-preview { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 6px; margin: 10px 0 12px; font-size: 10px; text-align: center; }
+.preview-main { display: grid; grid-template-rows: 39px 49px; gap: 4px; }
+.preview-video, .preview-chat, .preview-info, .preview-related { display: flex; justify-content: center; align-items: center; border-radius: 5px; }
+.preview-video { color: #fff; background: #283348; }
+.preview-chat { color: var(--accent); background: var(--soft-accent); border: 1px solid #d63b4922; }
+.preview-info { color: var(--muted); background: var(--surface); border: 1px solid var(--border); }
+.preview-related { grid-column: 1 / -1; min-height: 26px; color: var(--muted); border: 1px dashed var(--border); }
+.layout-guide > p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; word-break: keep-all; }
+.layout-guide > p.mode-description { margin: 7px 0 17px; }
+footer { margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--border); color: var(--muted); font-size: 10px; line-height: 1.7; }
+.error { margin: 12px 0 0; color: var(--accent); font-size: 11px; }
+[hidden] { display: none !important; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #181c24;
+    --surface: #222834;
+    --text: #eff2f8;
+    --muted: #abb4c5;
+    --border: #353e4e;
+    --accent: #ff7d8b;
+    --soft-accent: #382730;
+    --success: #53d5a4;
+  }
+  .switch input:checked + .switch-track { background: #cc4053; }
+  .preview-video { background: #34425a; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch-track, .switch-track::after { transition: none; }
+}

@@ -1,0 +1,390 @@
+/* Every rule is gated. Removing this attribute restores YouTube's own layout. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] {
+  --ytd-watch-flexy-chat-max-height: var(--ytlp-chat-height) !important;
+  --ytd-watch-flexy-panel-max-height: var(--ytlp-chat-height) !important;
+}
+
+/* Pin the existing sidebar wrapper within its tall native column. Keeping the
+   iframe and its ancestors connected preserves chat input and its connection. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="sticky-chat-host"] {
+  position: sticky !important;
+  top: var(--ytlp-chat-sticky-top, 0px) !important;
+}
+/* The viewport budget already reserves the bottom gap. Native chat margin
+   otherwise makes this wrapper taller and pushes it behind the header at the end. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="sticky-chat-host"] [data-ytlp-part="chat"] {
+  margin-bottom: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="chat"] {
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  height: var(--ytlp-chat-height) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="normal"] [data-ytlp-part="chat"] iframe {
+  display: block !important;
+  box-sizing: border-box !important;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active]:is([data-ytlp-mode="normal"], [data-ytlp-mode="landscape-theater"]) [data-ytlp-part="recommendations"] {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 24px 0 !important;
+}
+/* Fixed side chat already has space reserved by YouTube's columns padding.
+   Reclaim the unused former recommendation column without hiding its subtree. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="landscape-theater"] [data-ytlp-part="empty-column"] {
+  flex: 0 0 0 !important;
+  box-sizing: border-box !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+/* Limit regular-video columns in every active viewing mode. */
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] ytd-item-section-renderer > #contents {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(300px, calc((100% - 48px) / 4))), 1fr)) !important;
+  grid-auto-flow: row dense !important;
+  gap: 24px 16px !important;
+}
+/* At most three columns in portrait theater, and two in portrait normal mode. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-item-section-renderer > #contents {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(220px, calc((100% - 32px) / 3))), 1fr)) !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"][data-ytlp-mode="normal"] [data-ytlp-part="recommendations"] ytd-item-section-renderer > #contents {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(220px, calc((100% - 16px) / 2))), 1fr)) !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] :is(yt-lockup-view-model, ytd-compact-video-renderer) {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] .ytLockupViewModelHost {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] :is(.ytLockupViewModelContentImage, .ytLockupViewModelMetadata) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] ytd-compact-video-renderer > #dismissible {
+  flex-direction: column !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] ytd-compact-video-renderer :is(ytd-thumbnail, #thumbnail, .details) {
+  width: 100% !important;
+  margin-left: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] ytd-item-section-renderer > #contents > :not(yt-lockup-view-model):not(ytd-compact-video-renderer) {
+  grid-column: 1 / -1;
+}
+/* Portrait Shorts use roughly four larger cards across the shelf. The native
+   carousel keeps its transform and arrows; smaller shelves can scroll sideways. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-reel-shelf-renderer {
+  container-type: inline-size;
+  min-width: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-reel-shelf-renderer yt-horizontal-list-renderer #scroll-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-reel-shelf-renderer yt-horizontal-list-renderer #items {
+  display: flex !important;
+  width: max-content !important;
+  max-width: none !important;
+  gap: 16px !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-reel-shelf-renderer yt-horizontal-list-renderer #items > :is(ytm-shorts-lockup-view-model-v2, ytm-shorts-lockup-view-model) {
+  flex: none !important;
+  box-sizing: border-box !important;
+  width: min(100cqw, max(220px, calc((100cqw - 48px) / 4))) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-orientation="portrait"] [data-ytlp-part="recommendations"] ytd-reel-shelf-renderer yt-horizontal-list-renderer #items > ytm-shorts-lockup-view-model-v2 > ytm-shorts-lockup-view-model {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+/* Native Shorts arrows extend half a button outside their zero-width anchor.
+   Keep the entire 40px button inside the catalog instead of overflowing it. */
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] yt-horizontal-list-renderer #right-arrow {
+  right: 20px !important;
+  left: auto !important;
+}
+ytd-watch-flexy[data-ytlp-active] [data-ytlp-part="recommendations"] yt-horizontal-list-renderer #left-arrow {
+  left: 20px !important;
+  right: auto !important;
+}
+
+/* Hide YouTube's site header only while the portrait theater layout is active. */
+html[data-ytlp-portrait] :is(ytd-masthead, #masthead-container) {
+  display: none !important;
+}
+html[data-ytlp-portrait] ytd-app {
+  --ytd-masthead-height: 0px !important;
+}
+html[data-ytlp-portrait] :is(ytd-page-manager, #page-manager) {
+  margin-top: 0 !important;
+}
+
+/* A single flow reserves visible space for chat without moving media nodes. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] {
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  overflow-anchor: none;
+  --ytd-watch-flexy-chat-max-height: var(--ytlp-chat-height) !important;
+  --ytd-watch-flexy-panel-max-height: var(--ytlp-chat-height) !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-flow] {
+  display: contents !important;
+  position: static !important;
+  transform: none !important;
+  contain: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="player"] {
+  order: -30 !important;
+  display: block !important;
+  position: relative !important;
+  inset: auto !important;
+  flex: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: var(--ytlp-player-height) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  z-index: 1;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="player"] :is(#player-full-bleed-container, #player-container-outer, #player-container-inner, #player-container, ytd-player, ytd-player > #container, #movie_player, .html5-video-container) {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="player"] video {
+  width: 100% !important;
+  height: 100% !important;
+  left: 0 !important;
+  top: 0 !important;
+  object-fit: contain !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="player"] .ytp-chrome-bottom {
+  width: calc(100% - 24px) !important;
+  left: 12px !important;
+  right: 12px !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="player"] .ytp-progress-bar-container {
+  width: 100% !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] {
+  order: -20 !important;
+  display: block !important;
+  position: relative !important;
+  inset: auto !important;
+  flex: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: var(--ytlp-info-max-height) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 6px 0 4px !important;
+  padding: 0 12px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+}
+/* The native viewer-count tooltip opens below the last description line and
+   can create a scrollbar by itself. Open it above its text, within this panel. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] ytd-watch-info-text {
+  position: relative !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] ytd-watch-info-text > tp-yt-paper-tooltip {
+  top: auto !important;
+  bottom: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: auto !important;
+  max-width: 100% !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata [data-ytlp-empty-title] {
+  display: none !important;
+  margin: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata {
+  margin: 0 !important;
+  padding-bottom: 0 !important;
+}
+/* Expansion inserts a full-width bottom-actions row before the teaser card.
+   Keep the same two items on the first row in both states; actions follow. */
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata #bottom-row {
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata #bottom-row > #description {
+  order: 0 !important;
+  flex: 1 1 0 !important;
+  min-width: min(100%, max(381px, calc(50% - 12px))) !important;
+  overflow-wrap: anywhere;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata #bottom-row > :is(#teaser-carousel, #comment-teaser) {
+  order: 1 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] ytd-watch-metadata #bottom-row > #bottom-actions {
+  order: 2 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] > :has(> ytd-watch-metadata) {
+  padding-bottom: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #top-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  gap: 6px 12px !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #owner {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  flex: 1 1 420px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #owner > :not(ytd-video-owner-renderer) {
+  flex: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] ytd-video-owner-renderer {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] ytd-video-owner-renderer > :not([data-ytlp-part="title"]) {
+  flex: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #upload-info {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  max-width: min(180px, 24vw) !important;
+  overflow: hidden !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="title"] {
+  display: block !important;
+  flex: 1 1 0 !important;
+  min-width: 48px !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 12px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="title"] :is(yt-formatted-string, .yt-core-attributed-string) {
+  display: block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  -webkit-line-clamp: unset !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #actions {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 0 0 auto !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="info"] #actions-inner {
+  flex-wrap: wrap !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="chat"] {
+  order: -10 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  inset: auto !important;
+  flex: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: var(--ytlp-chat-height) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="chat"] iframe {
+  display: block !important;
+  box-sizing: border-box !important;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] [data-ytlp-part="recommendations"] {
+  order: -5 !important;
+  display: block !important;
+  position: relative !important;
+  inset: auto !important;
+  box-sizing: border-box !important;
+  width: calc(100% - 24px) !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 20px 12px 24px !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+ytd-watch-flexy[data-ytlp-active][data-ytlp-mode="portrait-theater"] :is(#cinematics-container, #cinematics, #cinematics-full-bleed-container, #secondary-split-scroll-spacer, #engagement-panel-scrim, ytd-live-chat-entry-point-renderer) {
+  display: none !important;
+}

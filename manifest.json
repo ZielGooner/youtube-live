@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "라이브 세로 보기",
+  "version": "1.0.11",
+  "description": "YouTube 라이브 기본 모드의 채팅·추천 배치를 개선하고, 세로 영화관 모드에서는 영상·방송 정보·채팅을 순서대로 배치합니다.",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "라이브 세로 보기",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["layout.css"],
+      "run_at": "document_start"
+    }
+  ]
+}

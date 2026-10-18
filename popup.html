@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>라이브 세로 보기</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header class="heading">
+        <img src="icons/icon48.png" alt="" width="36" height="36">
+        <div>
+          <p class="eyebrow">YOUTUBE LIVE</p>
+          <h1>라이브 세로 보기</h1>
+        </div>
+      </header>
+
+      <label class="setting" for="enabled">
+        <span>
+          <strong>라이브 화면 개선</strong>
+          <span class="setting-caption">이 브라우저의 모든 YouTube 탭에 적용</span>
+        </span>
+        <span class="switch">
+          <input id="enabled" type="checkbox" role="switch" checked>
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+
+      <section class="status-card" aria-labelledby="status-title" aria-live="polite" aria-atomic="true">
+        <div class="status-heading">
+          <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+          <h2 id="status-title">상태 확인 중</h2>
+        </div>
+        <p id="status-detail">현재 탭을 확인하고 있어요.</p>
+      </section>
+
+      <section class="layout-guide" aria-labelledby="layout-title">
+        <h2 id="normal-title">기본 모드</h2>
+        <p class="mode-description">영상·채팅의 원래 위치를 유지하고 채팅 높이를 화면 끝까지 늘려요. 추천 영상은 설명 아래에 모아요.</p>
+        <h2 id="layout-title">세로 영화관 모드</h2>
+        <p class="mode-description">YouTube 로고·검색 상단바를 숨겨 채팅 공간을 늘려요. 영상 크기는 유지하고 영상 → 채널·제목·설명 → 채팅 순서로 배치해요. 긴 설명은 정보 영역 안에서 스크롤하며 채팅 입력창과 둥근 하단을 화면 안에 유지해요.</p>
+        <p>세로 배치는 영화관 모드에서 높이가 너비보다 길고 500px 이상일 때 적용해요.</p>
+        <h2>가로 영화관 모드</h2>
+        <p class="mode-description">영상·채팅은 원래 위치에 두고 추천 영상을 채널 설명 아래에 모아요.</p>
+      </section>
+
+      <footer>세로 영화관 배치가 해제되면 상단바도 복구해요.<br>일반 영상·플레이어 전체화면은 그대로 유지해요.<br>채팅 필터는 YouTube와 사용자가 정한 상태를 유지해요.</footer>
+      <p id="error" class="error" role="alert" hidden></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
