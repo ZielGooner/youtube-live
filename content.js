@@ -199,7 +199,7 @@
     observer?.disconnect();
     watch = next;
     if (!watch) return;
-    watch.setAttribute('data-ytlp-version', '1.0.11');
+    watch.setAttribute('data-ytlp-version', '1.0.12');
     observer = new MutationObserver(records => {
       if (records.some(r => r.type === 'childList' || !r.attributeName?.startsWith('data-ytlp'))) schedule();
     });
@@ -433,7 +433,7 @@
     }
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (message?.type === 'ytlp:get-status') respond({enabled,active,reason,mode,version:'1.0.11'});
+    if (message?.type === 'ytlp:get-status') respond({enabled,active,reason,mode,version:'1.0.12'});
   });
   // A low frequency recovery check covers late watch mounts and future SPA events.
   // Hidden tabs don't repeatedly walk the DOM, and no iframe messages are observed.

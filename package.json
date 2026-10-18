@@ -1,6 +1,6 @@
 {
   "name": "youtube-live",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "private": true,
   "description": "Chrome·Edge용 YouTube 라이브 화면 개선 확장 프로그램",
   "scripts": {
